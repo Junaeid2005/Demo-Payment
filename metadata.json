@@ -1,0 +1,8 @@
+{
+  "name": "Savoria Artisanal Bistro & Bar",
+  "description": "Modern responsive restaurant web application featuring dynamic food menu, online ordering and real-time order tracking, Google authentication, customer dashboard, and full administrator management panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
