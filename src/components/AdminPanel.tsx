@@ -53,6 +53,7 @@ const PRESET_FOOD_IMAGES = [
   { name: 'Blood Orange Spritz', url: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80' },
   { name: 'Tiramisù Tradizionale', url: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=800&q=80' },
   { name: 'Belgian Chocolate Fondant', url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80' },
+  { name: 'Warm Garlic Herb Baguette (£1)', url: 'https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?auto=format&fit=crop&w=800&q=80' },
 ];
 
 export const AdminPanel: React.FC = () => {
@@ -371,7 +372,7 @@ export const AdminPanel: React.FC = () => {
                 </div>
               </div>
               <p className="text-3xl font-extrabold font-display text-stone-900">
-                ${stats.totalRevenue.toFixed(2)}
+                £{stats.totalRevenue.toFixed(2)}
               </p>
               <p className="text-xs text-stone-400 mt-1">From active customer transactions</p>
             </div>
@@ -471,7 +472,7 @@ export const AdminPanel: React.FC = () => {
                         <span className="font-medium text-stone-700">• {order.customerName}</span>
                       </div>
                       <span className="text-[11px] text-stone-400">
-                        {order.items.length} items • ${order.total.toFixed(2)} • {new Date(order.createdAt).toLocaleTimeString()}
+                        {order.items.length} items • £{order.total.toFixed(2)} • {new Date(order.createdAt).toLocaleTimeString()}
                       </span>
                     </div>
 
@@ -596,7 +597,7 @@ export const AdminPanel: React.FC = () => {
                         </td>
 
                         <td className="py-3.5 px-4 font-bold text-stone-900 text-sm">
-                          ${item.price.toFixed(2)}
+                          £{item.price.toFixed(2)}
                         </td>
 
                         <td className="py-3.5 px-4">
@@ -723,7 +724,7 @@ export const AdminPanel: React.FC = () => {
 
                     <div className="flex items-center gap-3">
                       <span className="font-display font-extrabold text-base text-stone-900">
-                        ${order.total.toFixed(2)}
+                        £{order.total.toFixed(2)}
                       </span>
 
                       {/* Status Dropdown Controller */}
@@ -916,7 +917,7 @@ export const AdminPanel: React.FC = () => {
 
                 <div>
                   <label className="font-bold text-stone-700 block mb-1">
-                    Price (USD) <span className="text-rose-600">*</span>
+                    Price (£ / GBP) <span className="text-rose-600">*</span>
                   </label>
                   <input
                     type="number"
@@ -924,7 +925,7 @@ export const AdminPanel: React.FC = () => {
                     required
                     value={formPrice}
                     onChange={(e) => setFormPrice(e.target.value)}
-                    placeholder="18.50"
+                    placeholder="1.00"
                     className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm"
                   />
                 </div>

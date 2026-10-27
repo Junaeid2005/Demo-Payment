@@ -69,6 +69,48 @@ export const Hero: React.FC<HeroProps> = ({ onExploreMenu, featuredItem }) => {
               </button>
             </div>
 
+            {/* £1 Flash Deal Highlight */}
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-stone-900/60 border border-amber-500/40 backdrop-blur-md flex items-center justify-between gap-3 max-w-lg mx-auto lg:mx-0 shadow-lg">
+              <div className="flex items-center gap-3 min-w-0">
+                <img
+                  src="https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?auto=format&fit=crop&w=400&q=80"
+                  alt="Artisan Garlic Herb Baguette"
+                  className="w-12 h-12 rounded-xl object-cover shrink-0 ring-1 ring-amber-400/50"
+                />
+                <div className="text-left min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500 text-stone-950">
+                      £1.00 Item
+                    </span>
+                    <span className="text-xs font-bold text-amber-300">Starter Special</span>
+                  </div>
+                  <p className="text-xs font-semibold text-stone-100 truncate mt-0.5">
+                    Artisan Warm Garlic Herb Baguette
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() =>
+                  addToCart(
+                    {
+                      id: 'special-1pound-baguette',
+                      name: 'Artisan Warm Garlic Herb Baguette',
+                      description: 'Freshly baked French artisanal sourdough baguette slice brushed with whipped roasted garlic herb butter, fresh parsley, and Maldon sea salt flakes.',
+                      price: 1.00,
+                      category: 'Starters',
+                      imageUrl: 'https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?auto=format&fit=crop&w=800&q=80',
+                      isAvailable: true,
+                    },
+                    1
+                  )
+                }
+                className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
+              >
+                Add for £1.00
+              </button>
+            </div>
+
             {/* Trust Badges */}
             <div className="pt-6 border-t border-stone-800/80 grid grid-cols-3 gap-4 max-w-lg mx-auto lg:mx-0 text-left">
               <div>
@@ -114,7 +156,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreMenu, featuredItem }) => {
                       {defaultHeroDish.name}
                     </p>
                     <p className="text-xs text-amber-400 font-semibold mt-0.5">
-                      ${defaultHeroDish.price.toFixed(2)} • Double Wagyu Beef
+                      £{defaultHeroDish.price.toFixed(2)} • Double Wagyu Beef
                     </p>
                   </div>
                   <button

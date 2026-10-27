@@ -50,7 +50,7 @@ export const MenuItemModal: React.FC<MenuItemModalProps> = ({ item, onClose }) =
               {item.category}
             </span>
             <span className="text-2xl font-bold font-display text-white drop-shadow-md">
-              ${item.price.toFixed(2)}
+              £{item.price.toFixed(2)}
             </span>
           </div>
         </div>
@@ -157,7 +157,7 @@ export const MenuItemModal: React.FC<MenuItemModalProps> = ({ item, onClose }) =
               }`}
             >
               <ShoppingBag className="w-4 h-4" />
-              <span>Add to Order • ${totalPrice}</span>
+              <span>Add to Order • £{totalPrice}</span>
             </button>
           </div>
         </div>

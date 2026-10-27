@@ -216,7 +216,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   >
                     <p className="font-bold text-sm text-stone-900">Doorstep Delivery</p>
                     <p className="text-xs text-stone-500 mt-0.5">
-                      Hot & fresh in 30-45 mins ({deliveryFee === 0 ? 'FREE' : `$${deliveryFee.toFixed(2)}`})
+                      Hot & fresh in 30-45 mins ({deliveryFee === 0 ? 'FREE' : `£${deliveryFee.toFixed(2)}`})
                     </p>
                   </button>
                   <button
@@ -325,7 +325,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-2 text-xs">
                 <div className="flex justify-between text-stone-600">
                   <span>Items Subtotal ({cart.length} types)</span>
-                  <span className="font-semibold text-stone-900">${subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-stone-900">£{subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-stone-600">
                   <span>Delivery Fee</span>
@@ -335,18 +335,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     ) : deliveryFee === 0 ? (
                       <span className="text-emerald-700 font-bold uppercase text-[10px]">Free</span>
                     ) : (
-                      `$${deliveryFee.toFixed(2)}`
+                      `£${deliveryFee.toFixed(2)}`
                     )}
                   </span>
                 </div>
                 <div className="flex justify-between text-stone-600">
                   <span>Sales Tax</span>
-                  <span className="font-semibold text-stone-900">${tax.toFixed(2)}</span>
+                  <span className="font-semibold text-stone-900">£{tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-stone-900 pt-2 border-t border-stone-200">
                   <span>Total Amount</span>
                   <span className="text-amber-700 font-display text-base">
-                    ${(subtotal + (fulfillmentType === 'pickup' ? 0 : deliveryFee) + tax).toFixed(2)}
+                    £{(subtotal + (fulfillmentType === 'pickup' ? 0 : deliveryFee) + tax).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -366,7 +366,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   <>
                     <CheckCircle2 className="w-5 h-5" />
                     <span>
-                      Place Order • ${(subtotal + (fulfillmentType === 'pickup' ? 0 : deliveryFee) + tax).toFixed(2)}
+                      Place Order • £{(subtotal + (fulfillmentType === 'pickup' ? 0 : deliveryFee) + tax).toFixed(2)}
                     </span>
                   </>
                 )}

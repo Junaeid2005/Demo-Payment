@@ -80,7 +80,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout, onE
                 <span className="flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                   {amountToFreeDelivery > 0
-                    ? `Add $${amountToFreeDelivery.toFixed(2)} more for FREE Delivery`
+                    ? `Add £${amountToFreeDelivery.toFixed(2)} more for FREE Delivery`
                     : '🎉 You have unlocked FREE Delivery!'}
                 </span>
                 <span>{progressPercent}%</span>
@@ -153,7 +153,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout, onE
 
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-stone-200/50">
                       <span className="font-bold text-stone-900 text-sm">
-                        ${(menuItem.price * quantity).toFixed(2)}
+                        £{(menuItem.price * quantity).toFixed(2)}
                       </span>
 
                       {/* Quantity Selector */}
@@ -187,7 +187,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout, onE
               <div className="space-y-1.5 text-xs text-stone-600">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-stone-900">${subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-stone-900">£{subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Delivery Fee</span>
@@ -195,17 +195,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout, onE
                     {deliveryFee === 0 ? (
                       <span className="text-emerald-700 font-bold uppercase text-[10px]">Free</span>
                     ) : (
-                      `$${deliveryFee.toFixed(2)}`
+                      `£${deliveryFee.toFixed(2)}`
                     )}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Estimated Tax (8.25%)</span>
-                  <span className="font-semibold text-stone-900">${tax.toFixed(2)}</span>
+                  <span className="font-semibold text-stone-900">£{tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-base font-bold text-stone-950 pt-2 border-t border-stone-200">
                   <span className="font-display">Estimated Total</span>
-                  <span className="font-display text-amber-700">${total.toFixed(2)}</span>
+                  <span className="font-display text-amber-700">£{total.toFixed(2)}</span>
                 </div>
               </div>
 

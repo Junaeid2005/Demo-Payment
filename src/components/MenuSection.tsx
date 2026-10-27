@@ -237,7 +237,7 @@ export const MenuSection: React.FC<MenuSectionProps> = ({ items, onSelectItem })
                       <div>
                         <span className="text-[11px] text-stone-400 block font-medium">Price</span>
                         <span className="text-xl font-extrabold text-stone-900">
-                          ${item.price.toFixed(2)}
+                          £{item.price.toFixed(2)}
                         </span>
                       </div>
 

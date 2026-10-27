@@ -11,8 +11,11 @@ interface PopularDishesProps {
 
 export const PopularDishes: React.FC<PopularDishesProps> = ({ items, onSelectItem, onViewMenu }) => {
   const { addToCart } = useCart();
-  const popularItems = items.filter((i) => i.isPopular && i.isAvailable).slice(0, 4);
-  const displayList = popularItems.length > 0 ? popularItems : items.slice(0, 4);
+  const onePoundItem = items.find((i) => i.price === 1.00);
+  const otherPopular = items.filter((i) => i.isPopular && i.isAvailable && i.price !== 1.00);
+  const displayList = onePoundItem
+    ? [onePoundItem, ...otherPopular.slice(0, 3)]
+    : otherPopular.slice(0, 4);
 
   return (
     <section id="popular-section" className="py-16 sm:py-24 bg-stone-100/70 border-b border-stone-200">
@@ -59,10 +62,17 @@ export const PopularDishes: React.FC<PopularDishesProps> = ({ items, onSelectIte
                     loading="lazy"
                   />
                   <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                    <span className="bg-stone-900/85 backdrop-blur-xs text-amber-400 font-bold text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                      Popular
-                    </span>
+                    {item.price === 1.00 ? (
+                      <span className="bg-emerald-600 text-white font-extrabold text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-md animate-pulse">
+                        <Flame className="w-3 h-3 text-white" />
+                        £1 Flash Special
+                      </span>
+                    ) : (
+                      <span className="bg-stone-900/85 backdrop-blur-xs text-amber-400 font-bold text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        Popular
+                      </span>
+                    )}
                     {item.category && (
                       <span className="bg-white/90 backdrop-blur-xs text-stone-800 font-semibold text-[11px] px-2.5 py-1 rounded-lg">
                         {item.category}
@@ -94,7 +104,7 @@ export const PopularDishes: React.FC<PopularDishesProps> = ({ items, onSelectIte
                     <div>
                       <span className="text-xs text-stone-400 block">Price</span>
                       <span className="text-lg font-bold text-stone-900">
-                        ${item.price.toFixed(2)}
+                        £{item.price.toFixed(2)}
                       </span>
                     </div>
 

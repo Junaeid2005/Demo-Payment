@@ -16,7 +16,7 @@ import { HoursAndContact } from './components/HoursAndContact';
 import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
 import { MenuItem, Order } from './types';
-import { subscribeToMenuItems, INITIAL_MENU_ITEMS, seedInitialMenuIfEmpty } from './firebase/menu';
+import { subscribeToMenuItems, INITIAL_MENU_ITEMS, ONE_POUND_ITEM, seedInitialMenuIfEmpty } from './firebase/menu';
 
 const MainContent: React.FC = () => {
   const { user, isAdmin } = useAuth();
@@ -36,7 +36,12 @@ const MainContent: React.FC = () => {
     const unsubscribe = subscribeToMenuItems(
       (items) => {
         if (items.length > 0) {
-          setMenuItems(items);
+          const hasOnePound = items.some((i) => i.price === 1.00 || i.name?.toLowerCase().includes('baguette'));
+          if (!hasOnePound) {
+            setMenuItems([{ id: 'special-1pound-baguette', ...ONE_POUND_ITEM }, ...items]);
+          } else {
+            setMenuItems(items);
+          }
         } else {
           // If Firestore is initially empty, fall back to initial items in memory
           // until admin seeds, so the restaurant UI is immediately vibrant and gorgeous!

@@ -72,7 +72,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
           <div className="flex justify-between items-center pt-2.5 border-t border-stone-200">
             <span className="text-stone-500 font-medium">Total Charged</span>
             <span className="font-display font-bold text-base text-stone-900">
-              ${order.total.toFixed(2)}
+              £{order.total.toFixed(2)}
             </span>
           </div>
         </div>

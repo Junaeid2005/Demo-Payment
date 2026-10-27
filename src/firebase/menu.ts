@@ -25,7 +25,21 @@ export const INITIAL_CATEGORIES: CategoryInfo[] = [
   { id: 'desserts', name: 'Desserts', slug: 'desserts', description: 'Decadent artisanal sweets & Italian delicacies', displayOrder: 6 },
 ];
 
+export const ONE_POUND_ITEM: Omit<MenuItem, 'id'> = {
+  name: 'Artisan Warm Garlic Herb Baguette',
+  description: 'Freshly baked French artisanal sourdough baguette slice brushed with whipped roasted garlic herb butter, fresh parsley, and Maldon sea salt flakes.',
+  price: 1.00,
+  category: 'Starters',
+  imageUrl: 'https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?auto=format&fit=crop&w=800&q=80',
+  isAvailable: true,
+  isPopular: true,
+  dietary: ['Vegetarian', 'Chef Special', '£1 Deal'],
+  prepTime: '5 mins',
+  calories: 190,
+};
+
 export const INITIAL_MENU_ITEMS: Omit<MenuItem, 'id'>[] = [
+  ONE_POUND_ITEM,
   {
     name: 'Wagyu Truffle Smash Burger',
     description: 'Double Wagyu beef smash patties, black truffle aioli, aged Gruyère cheese, caramelized shallots, and crisp wild baby arugula on a toasted brioche bun.',
@@ -193,6 +207,18 @@ export const INITIAL_MENU_ITEMS: Omit<MenuItem, 'id'>[] = [
     dietary: ['Vegetarian'],
     prepTime: '8 mins',
     calories: 560,
+  },
+  {
+    name: 'Artisan Warm Garlic Herb Baguette',
+    description: 'Freshly baked French artisanal sourdough baguette slice brushed with whipped roasted garlic herb butter, fresh parsley, and Maldon sea salt flakes.',
+    price: 1.00,
+    category: 'Starters',
+    imageUrl: 'https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    isPopular: true,
+    dietary: ['Vegetarian', 'Chef Special'],
+    prepTime: '5 mins',
+    calories: 190,
   }
 ];
 
@@ -276,6 +302,24 @@ export async function seedInitialMenuIfEmpty(): Promise<boolean> {
         });
       }
       return true;
+    } else {
+      // Check if the £1.00 item is missing from Firestore
+      const hasOnePoundItem = snap.docs.some((doc) => {
+        const d = doc.data();
+        return d.price === 1.00 || d.name?.includes('Garlic Herb Baguette');
+      });
+      if (!hasOnePoundItem) {
+        console.log('Adding £1.00 Artisan Warm Garlic Herb Baguette to Firestore...');
+        const onePoundItem = INITIAL_MENU_ITEMS.find((i) => i.price === 1.00);
+        if (onePoundItem) {
+          const now = new Date().toISOString();
+          await addDoc(collection(db, 'menuItems'), {
+            ...onePoundItem,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+      }
     }
     return false;
   } catch (error) {
@@ -283,3 +327,4 @@ export async function seedInitialMenuIfEmpty(): Promise<boolean> {
     return false;
   }
 }
+

@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView }) => 
           Open Today: 11:00 AM – 10:00 PM
         </span>
         <span className="text-stone-600">•</span>
-        <span>Free delivery on orders over $50</span>
+        <span>Free delivery on orders over £50</span>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

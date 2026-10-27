@@ -91,7 +91,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + item.menuItem.price * item.quantity, 0);
-  // Free delivery for orders $50+
+  // Free delivery for orders £50+
   const deliveryFee = subtotal === 0 ? 0 : subtotal >= 50 ? 0 : 3.99;
   const tax = subtotal * 0.0825;
   const total = subtotal + deliveryFee + tax;

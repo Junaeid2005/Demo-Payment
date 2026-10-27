@@ -25,7 +25,7 @@ export const Toast: React.FC = () => {
           {lastAddedItem.name}
         </p>
         <p className="text-xs text-stone-400">
-          ${lastAddedItem.price.toFixed(2)}
+          £{lastAddedItem.price.toFixed(2)}
         </p>
       </div>
       <div className="flex items-center gap-1">

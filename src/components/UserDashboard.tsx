@@ -390,7 +390,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onBackToMenu }) =>
 
                         <div className="flex items-center gap-3">
                           <span className="text-base font-extrabold font-display text-stone-900">
-                            ${order.total.toFixed(2)}
+                            £{order.total.toFixed(2)}
                           </span>
 
                           <button
@@ -483,7 +483,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onBackToMenu }) =>
                                   {item.name}
                                 </p>
                                 <p className="text-[11px] text-stone-500">
-                                  {item.quantity} × ${item.price.toFixed(2)}
+                                  {item.quantity} × £{item.price.toFixed(2)}
                                 </p>
                                 {item.notes && (
                                   <p className="text-[10px] text-amber-700 italic truncate">
@@ -492,7 +492,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onBackToMenu }) =>
                                 )}
                               </div>
                               <span className="text-xs font-bold text-stone-900">
-                                ${(item.price * item.quantity).toFixed(2)}
+                                £{(item.price * item.quantity).toFixed(2)}
                               </span>
                             </div>
                           ))}
