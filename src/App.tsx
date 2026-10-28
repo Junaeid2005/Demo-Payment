@@ -18,10 +18,11 @@ import { Toast } from './components/Toast';
 import { ShieldCheck } from 'lucide-react';
 import { MenuItem, Order } from './types';
 import { subscribeToMenuItems, INITIAL_MENU_ITEMS, ONE_POUND_ITEM, seedInitialMenuIfEmpty } from './firebase/menu';
+import { createOrder } from './firebase/orders';
 
 const MainContent: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const { setIsCartOpen } = useCart();
+  const { setIsCartOpen, clearCart } = useCart();
 
   const [activeView, setActiveView] = useState<'home' | 'menu' | 'profile' | 'admin'>('home');
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -74,6 +75,50 @@ const MainContent: React.FC = () => {
       seedInitialMenuIfEmpty().catch(() => {});
     }
   }, [isAdmin]);
+
+  // Check for Stripe Checkout return (session_id in URL)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    const orderSuccess = params.get('order_success');
+
+    if (sessionId && orderSuccess) {
+      fetch(`/api/verify-checkout-session?sessionId=${sessionId}`)
+        .then((res) => res.json())
+        .then(async (data) => {
+          if (data.paid && data.metadata) {
+            try {
+              const meta = data.metadata;
+              const items = meta.orderItemsJson ? JSON.parse(meta.orderItemsJson) : [];
+              const placedOrder = await createOrder({
+                userId: meta.userId || 'guest',
+                customerName: meta.customerName || 'Valued Guest',
+                customerEmail: data.customerEmail || '',
+                customerPhone: meta.customerPhone || '',
+                deliveryAddress: meta.deliveryAddress || 'Doorstep Delivery',
+                items,
+                subtotal: data.amountTotal,
+                deliveryFee: 0,
+                tax: 0,
+                total: data.amountTotal,
+                paymentMethod: 'stripe',
+                paymentStatus: 'paid',
+                paymentIntentId: data.paymentIntentId || '',
+              });
+
+              clearCart();
+              setConfirmedOrder(placedOrder);
+            } catch (err) {
+              console.error('Error recording confirmed order:', err);
+            }
+          }
+        })
+        .catch((err) => console.error('Verification error:', err))
+        .finally(() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+    }
+  }, [clearCart]);
 
   const handleOrderSuccess = (newOrder: Order) => {
     setConfirmedOrder(newOrder);
