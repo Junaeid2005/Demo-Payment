@@ -165,10 +165,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
             currency: 'gbp',
             customerEmail: user?.email || '',
             customerName: customerName.trim(),
+            isEmbeddedIframe: typeof window !== 'undefined' && window.self !== window.top,
             metadata: {
               userId: user?.uid || '',
               customerPhone: customerPhone.trim(),
               deliveryAddress: deliveryAddress.trim(),
+              orderItemsJson: JSON.stringify(
+                cart.map((i) => ({
+                  menuItemId: i.menuItem.id,
+                  name: i.menuItem.name,
+                  price: i.menuItem.price,
+                  quantity: i.quantity,
+                  imageUrl: i.menuItem.imageUrl || '',
+                }))
+              ),
             },
           }),
         },

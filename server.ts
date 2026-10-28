@@ -147,7 +147,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
       });
     }
 
-    const { amount, currency = 'gbp', customerEmail, customerName, metadata = {} } = req.body;
+    const { amount, currency = 'gbp', customerEmail, customerName, isEmbeddedIframe = false, metadata = {} } = req.body;
 
     if (!amount || typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ error: 'Valid payment amount is required.' });
@@ -162,9 +162,13 @@ app.post('/api/create-payment-intent', async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInMinorUnits,
       currency: currency.toLowerCase(),
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      ...(isEmbeddedIframe
+        ? { payment_method_types: ['card'] }
+        : {
+            automatic_payment_methods: {
+              enabled: true,
+            },
+          }),
       description: `Savoria Bistro Order for ${customerName || 'Customer'}`,
       receipt_email: cleanEmail,
       metadata: {
@@ -183,6 +187,29 @@ app.post('/api/create-payment-intent', async (req, res) => {
     return res.status(500).json({
       error: err?.message || 'Failed to initialize payment',
     });
+  }
+});
+
+// 4. Verify PaymentIntent on 3DS redirect return
+app.get('/api/verify-payment-intent', async (req, res) => {
+  try {
+    const paymentIntentId = req.query.paymentIntentId as string;
+    if (!paymentIntentId || !stripe) {
+      return res.status(400).json({ error: 'PaymentIntent ID and Stripe configuration required' });
+    }
+
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    return res.json({
+      paid: pi.status === 'succeeded' || pi.status === 'processing',
+      status: pi.status,
+      amountTotal: pi.amount ? pi.amount / 100 : 0,
+      customerEmail: pi.receipt_email || '',
+      metadata: pi.metadata || {},
+      paymentIntentId: pi.id,
+    });
+  } catch (err: any) {
+    console.error('Verify PaymentIntent error:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to retrieve PaymentIntent' });
   }
 });
 

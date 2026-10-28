@@ -76,12 +76,13 @@ const MainContent: React.FC = () => {
     }
   }, [isAdmin]);
 
-  // Check for Stripe Checkout return (session_id in URL)
+  // Check for Stripe Checkout or 3DS PaymentIntent return in URL
   useEffect(() => {
     if (!user) return;
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
     const orderSuccess = params.get('order_success');
+    const paymentIntentParam = params.get('payment_intent');
 
     if (sessionId && orderSuccess) {
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -123,6 +124,43 @@ const MainContent: React.FC = () => {
           }
         })
         .catch((err) => console.error('Verification error:', err));
+    } else if (paymentIntentParam) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      fetch(`/api/verify-payment-intent?paymentIntentId=${paymentIntentParam}`, {
+        credentials: 'include',
+      })
+        .then((res) => res.json())
+        .then(async (data) => {
+          if (data.paid && data.metadata) {
+            try {
+              const meta = data.metadata;
+              const items = meta.orderItemsJson ? JSON.parse(meta.orderItemsJson) : [];
+              if (items.length > 0) {
+                const placedOrder = await createOrder({
+                  userId: user.uid,
+                  customerName: meta.customerName || user.displayName || 'Valued Guest',
+                  customerEmail: data.customerEmail || user.email || '',
+                  customerPhone: meta.customerPhone || '',
+                  deliveryAddress: meta.deliveryAddress || 'Doorstep Delivery',
+                  items,
+                  subtotal: data.amountTotal,
+                  deliveryFee: 0,
+                  tax: 0,
+                  total: data.amountTotal,
+                  paymentMethod: 'stripe',
+                  paymentStatus: 'paid',
+                  paymentIntentId: data.paymentIntentId || paymentIntentParam,
+                });
+
+                clearCart();
+                setConfirmedOrder(placedOrder);
+              }
+            } catch (err) {
+              console.error('Error recording 3DS confirmed order:', err);
+            }
+          }
+        })
+        .catch((err) => console.error('3DS verification error:', err));
     }
   }, [user, clearCart]);
 

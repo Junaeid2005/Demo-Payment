@@ -28,6 +28,8 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [elementReady, setElementReady] = useState(false);
 
+  const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -46,8 +48,12 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         return;
       }
 
+      const returnUrl = `${window.location.origin}/?payment_return=true`;
       const result = await stripe.confirmPayment({
         elements,
+        confirmParams: {
+          return_url: returnUrl,
+        },
         redirect: 'if_required',
       });
 
@@ -57,7 +63,12 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         return;
       }
 
-      if (result.paymentIntent && (result.paymentIntent.status === 'succeeded' || result.paymentIntent.status === 'processing')) {
+      if (
+        result.paymentIntent &&
+        (result.paymentIntent.status === 'succeeded' ||
+          result.paymentIntent.status === 'processing' ||
+          result.paymentIntent.status === 'requires_capture')
+      ) {
         await onPaymentSuccess(result.paymentIntent.id);
       } else {
         setIsSubmitting(false);
@@ -77,9 +88,19 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
           onReady={() => setElementReady(true)}
           options={{
             layout: 'tabs',
+            wallets: {
+              applePay: 'auto',
+              googlePay: 'auto',
+            },
           }}
         />
       </div>
+
+      {isInIframe && (
+        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-center">
+          Tip: Use direct Card entry inside preview, or open the app in a new tab for bank-redirect methods (Klarna/Revolut).
+        </p>
+      )}
 
       <button
         type="submit"
