@@ -26,6 +26,48 @@ interface CheckoutModalProps {
   onOrderSuccess: (order: Order) => void;
 }
 
+/**
+ * Safely performs a JSON API request with automatic retry if AI Studio's reverse proxy
+ * briefly returns an HTML cookie-handshake / warm-up page instead of JSON.
+ */
+async function safeApiFetchJson(url: string, options: RequestInit = {}, retries = 2): Promise<{ ok: boolean; status: number; data: any }> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    const rawText = await res.text();
+
+    // Check if response looks like JSON
+    if (contentType.includes('application/json') || rawText.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(rawText);
+        return { ok: res.ok, status: res.status, data: parsed };
+      } catch {
+        // Fall through to retry if malformed
+      }
+    }
+
+    // If proxy returned an HTML challenge/interstitial page, wait briefly and retry
+    if (attempt < retries) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      continue;
+    }
+
+    throw new Error(
+      'Server connection refreshed. Please click the Pay button once more (or open the app in a new browser tab if cookies are blocked).'
+    );
+  }
+
+  throw new Error('Failed to communicate with payment server.');
+}
+
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onOrderSuccess }) => {
   const { user, profile, login } = useAuth();
   const { cart, subtotal, deliveryFee, total, clearCart } = useCart();
@@ -38,8 +80,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Embedded Stripe Payment Element state
-  const [publishableKey, setPublishableKey] = useState<string>('');
+  // Embedded Stripe Payment Element state — use build-time VITE key immediately as fallback!
+  const [publishableKey, setPublishableKey] = useState<string>(
+    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ''
+  );
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [initializingElement, setInitializingElement] = useState<boolean>(false);
 
@@ -48,7 +92,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     return loadStripe(publishableKey);
   }, [publishableKey]);
 
-  // Fetch publishable key on open
+  // Fetch publishable key on open (safe JSON parsing)
   useEffect(() => {
     if (!isOpen) {
       setClientSecret(null);
@@ -56,14 +100,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
       return;
     }
 
-    fetch('/api/payment-config')
-      .then((r) => r.json())
-      .then((cfg) => {
-        if (cfg.publishableKey) {
-          setPublishableKey(cfg.publishableKey);
+    safeApiFetchJson('/api/payment-config', { method: 'GET' }, 1)
+      .then(({ ok, data }) => {
+        if (ok && data?.publishableKey) {
+          setPublishableKey(data.publishableKey);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Fallback to import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY already set
+      });
   }, [isOpen]);
 
   // Sync profile details
@@ -110,26 +155,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     setErrorMessage(null);
 
     try {
-      const res = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: total,
-          currency: 'gbp',
-          customerEmail: user?.email || '',
-          customerName: customerName.trim(),
-          metadata: {
-            userId: user?.uid || '',
-            customerPhone: customerPhone.trim(),
-            deliveryAddress: deliveryAddress.trim(),
-          },
-        }),
-      });
+      const { ok, data } = await safeApiFetchJson(
+        '/api/create-payment-intent',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: total,
+            currency: 'gbp',
+            customerEmail: user?.email || '',
+            customerName: customerName.trim(),
+            metadata: {
+              userId: user?.uid || '',
+              customerPhone: customerPhone.trim(),
+              deliveryAddress: deliveryAddress.trim(),
+            },
+          }),
+        },
+        2
+      );
 
-      const data = await res.json();
-      if (!res.ok || !data.clientSecret) {
-        throw new Error(data.error || 'Failed to initialize Stripe payment.');
+      if (!ok || !data?.clientSecret) {
+        throw new Error(data?.error || 'Failed to initialize Stripe payment.');
+      }
+
+      if (!publishableKey) {
+        const cfgRes = await safeApiFetchJson('/api/payment-config', { method: 'GET' }, 1);
+        if (cfgRes.ok && cfgRes.data?.publishableKey) {
+          setPublishableKey(cfgRes.data.publishableKey);
+        }
       }
 
       setClientSecret(data.clientSecret);
@@ -201,32 +255,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         notes: item.notes || '',
       }));
 
-      const res = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: orderItems,
-          deliveryFee,
-          customerName: customerName.trim(),
-          customerPhone: customerPhone.trim(),
-          customerEmail: user?.email || '',
-          deliveryAddress: deliveryAddress.trim(),
-          userId: user?.uid || 'guest',
-        }),
-      });
+      const { ok, data } = await safeApiFetchJson(
+        '/api/create-checkout-session',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: orderItems,
+            deliveryFee,
+            customerName: customerName.trim(),
+            customerPhone: customerPhone.trim(),
+            customerEmail: user?.email || '',
+            deliveryAddress: deliveryAddress.trim(),
+            userId: user?.uid || 'guest',
+          }),
+        },
+        2
+      );
 
-      const data = await res.json();
-      if (res.ok && data.url) {
+      if (ok && data?.url) {
         if (window.top && window.top !== window.self) {
-          // Inside iframe: top-level redirect or inform user to use embedded card form
           window.top.location.href = data.url;
         } else {
           window.location.href = data.url;
         }
       } else {
         setIsSubmitting(false);
-        setErrorMessage(data.error || 'Failed to initialize Stripe Checkout.');
+        setErrorMessage(data?.error || 'Failed to initialize Stripe Checkout.');
       }
     } catch (err: any) {
       setIsSubmitting(false);
@@ -263,7 +318,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         deliveryFee,
         tax: 0,
         total,
-        paymentMethod: 'stripe' === paymentMethod ? 'stripe' : 'cash',
+        paymentMethod: 'cash',
         paymentStatus: 'pending',
       });
 
