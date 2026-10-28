@@ -281,7 +281,7 @@ export const AdminPanel: React.FC = () => {
               <span>Designated Owner Email:</span>
             </p>
             <p className="font-mono text-amber-800 font-bold bg-white px-2.5 py-1.5 rounded-lg border border-stone-200 break-all">
-              junaeidshohan@gmail.com
+              junaeidshohan2005@gmail.com
             </p>
             {user && (
               <p className="text-stone-500 pt-2 border-t border-stone-200/80">
@@ -311,7 +311,7 @@ export const AdminPanel: React.FC = () => {
               }}
               className="w-full py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-2xl font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
             >
-              <span>Switch Account to junaeidshohan@gmail.com</span>
+              <span>Switch Account to junaeidshohan2005@gmail.com</span>
             </button>
           )}
         </div>

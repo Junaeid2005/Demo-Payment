@@ -1,12 +1,12 @@
 {
-  "projectId": "festive-edition-2c70r",
-  "appId": "1:1048251440597:web:38201c710b288e9652f15c",
-  "apiKey": "AIzaSyDFevH4knfcyGKbcmdkZY9F964J05rlnvc",
-  "authDomain": "festive-edition-2c70r.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-3354e0c8-cde8-447c-8615-b809226e2020",
-  "storageBucket": "festive-edition-2c70r.firebasestorage.app",
-  "messagingSenderId": "1048251440597",
+  "projectId": "gen-lang-client-0405014241",
+  "appId": "1:54162923759:web:5c2266fd76482ddf483b1a",
+  "apiKey": "AIzaSyD3VzXthlstky7k7Ul3z4YH4lJBq4SyNcY",
+  "authDomain": "gen-lang-client-0405014241.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-demopayment-646025e9-fb84-46ea-bf9b-a72c77624f09",
+  "storageBucket": "gen-lang-client-0405014241.firebasestorage.app",
+  "messagingSenderId": "54162923759",
   "measurementId": "",
-  "oAuthClientId": "1048251440597-s654blrmg6f8o58gcpekrt7frtrcg87l.apps.googleusercontent.com",
+  "oAuthClientId": "54162923759-4qv5dvct9hh1fh0gcbtj6fu86bbbd1m8.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

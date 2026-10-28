@@ -4,7 +4,17 @@ import { auth, db, googleProvider } from './config';
 import { handleFirestoreError, OperationType } from './errors';
 import { UserProfile, UserRole } from '../types';
 
-export const BOOTSTRAP_ADMIN_EMAIL = 'junaeidshohan@gmail.com';
+export const BOOTSTRAP_ADMIN_EMAIL = 'junaeidshohan2005@gmail.com';
+export const BOOTSTRAP_ADMIN_EMAILS = [
+  'junaeidshohan2005@gmail.com',
+  'junaeidshohan@gmail.com',
+  'junaeishohan@gmail.com',
+];
+
+export function isBootstrapAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return BOOTSTRAP_ADMIN_EMAILS.includes(email.toLowerCase());
+}
 
 export async function loginWithGoogle(): Promise<User> {
   try {
@@ -32,7 +42,7 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
 
   try {
     const snapshot = await getDoc(userRef);
-    const isBootstrappedAdmin = user.email?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
+    const isBootstrappedAdmin = isBootstrapAdminEmail(user.email);
 
     if (!snapshot.exists()) {
       const initialRole: UserRole = isBootstrappedAdmin ? 'admin' : 'user';
@@ -115,7 +125,7 @@ export async function updateUserProfile(
 
 export async function checkIsAdmin(user: User | null): Promise<boolean> {
   if (!user || !user.email) return false;
-  if (user.email.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase()) return true;
+  if (isBootstrapAdminEmail(user.email)) return true;
 
   try {
     const adminSnap = await getDoc(doc(db, 'admins', user.uid));

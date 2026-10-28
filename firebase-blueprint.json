@@ -42,6 +42,7 @@
         "isPopular": { "type": "boolean" },
         "dietary": { "type": "array" },
         "prepTime": { "type": "string", "maxLength": 32 },
+        "calories": { "type": "number" },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },
@@ -69,6 +70,9 @@
           "type": "string",
           "enum": ["pending", "confirmed", "preparing", "ready", "delivered", "cancelled"]
         },
+        "paymentMethod": { "type": "string", "enum": ["stripe", "cash"] },
+        "paymentStatus": { "type": "string", "enum": ["paid", "pending"] },
+        "paymentIntentId": { "type": "string", "maxLength": 128 },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },
