@@ -78,11 +78,13 @@ const MainContent: React.FC = () => {
 
   // Check for Stripe Checkout return (session_id in URL)
   useEffect(() => {
+    if (!user) return;
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
     const orderSuccess = params.get('order_success');
 
     if (sessionId && orderSuccess) {
+      window.history.replaceState({}, document.title, window.location.pathname);
       fetch(`/api/verify-checkout-session?sessionId=${sessionId}`, {
         credentials: 'include',
       })
@@ -98,9 +100,9 @@ const MainContent: React.FC = () => {
               const meta = data.metadata;
               const items = meta.orderItemsJson ? JSON.parse(meta.orderItemsJson) : [];
               const placedOrder = await createOrder({
-                userId: meta.userId || 'guest',
-                customerName: meta.customerName || 'Valued Guest',
-                customerEmail: data.customerEmail || '',
+                userId: user.uid,
+                customerName: meta.customerName || user.displayName || 'Valued Guest',
+                customerEmail: data.customerEmail || user.email || '',
                 customerPhone: meta.customerPhone || '',
                 deliveryAddress: meta.deliveryAddress || 'Doorstep Delivery',
                 items,
@@ -120,12 +122,9 @@ const MainContent: React.FC = () => {
             }
           }
         })
-        .catch((err) => console.error('Verification error:', err))
-        .finally(() => {
-          window.history.replaceState({}, document.title, window.location.pathname);
-        });
+        .catch((err) => console.error('Verification error:', err));
     }
-  }, [clearCart]);
+  }, [user, clearCart]);
 
   const handleOrderSuccess = (newOrder: Order) => {
     setConfirmedOrder(newOrder);
