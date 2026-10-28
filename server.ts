@@ -11,7 +11,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+// CRITICAL: AI Studio Nginx listens on 8080 and proxies to Node on port 3000.
+// Node MUST always listen on port 3000.
+const PORT = 3000;
 
 app.use(express.json());
 
@@ -193,6 +195,11 @@ app.get('/api/payment-config', (_req, res) => {
     currency: 'GBP',
     currencySymbol: '£',
   });
+});
+
+// Explicit JSON 404 for any unhandled /api calls so Vite never serves HTML for API calls
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
 });
 
 async function startServer() {

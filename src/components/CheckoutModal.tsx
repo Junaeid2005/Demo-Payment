@@ -100,14 +100,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         }),
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      let data: any = {};
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        throw new Error('Connection interrupted while contacting server. Please click pay again.');
+      }
 
       if (res.ok && data.url) {
         // Redirect directly to Stripe's secure payment page
         window.location.href = data.url;
       } else {
         setIsSubmitting(false);
-        setErrorMessage(data.error || 'Failed to initialize Stripe payment. Please try again or choose Pay on Delivery.');
+        setErrorMessage(data.error || 'Failed to initialize Stripe payment. Please try again.');
       }
     } catch (err: any) {
       console.error('Stripe redirect error:', err);
