@@ -91,9 +91,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + item.menuItem.price * item.quantity, 0);
-  // Free delivery for orders £50+
-  const deliveryFee = subtotal === 0 ? 0 : subtotal >= 50 ? 0 : 3.99;
-  const tax = subtotal * 0.0825;
+  // Free delivery if cart has the £1.00 promotional item or subtotal >= £50
+  const hasOnePoundItem = cart.some((item) => Math.abs(Number(item.menuItem.price) - 1.00) < 0.01);
+  const deliveryFee = subtotal === 0 ? 0 : (subtotal >= 50 || hasOnePoundItem) ? 0 : 3.99;
+  // In the UK (GBP), VAT is already included in food prices
+  const tax = 0;
   const total = subtotal + deliveryFee + tax;
 
   return (

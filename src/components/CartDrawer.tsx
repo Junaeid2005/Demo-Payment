@@ -199,12 +199,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout, onE
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Estimated Tax (8.25%)</span>
-                  <span className="font-semibold text-stone-900">£{tax.toFixed(2)}</span>
-                </div>
+                {tax > 0 && (
+                  <div className="flex justify-between">
+                    <span>Tax</span>
+                    <span className="font-semibold text-stone-900">£{tax.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-base font-bold text-stone-950 pt-2 border-t border-stone-200">
-                  <span className="font-display">Estimated Total</span>
+                  <span className="font-display">Total</span>
                   <span className="font-display text-amber-700">£{total.toFixed(2)}</span>
                 </div>
               </div>
