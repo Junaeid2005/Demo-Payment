@@ -15,6 +15,7 @@ import { AboutSection } from './components/AboutSection';
 import { HoursAndContact } from './components/HoursAndContact';
 import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
+import { ShieldCheck } from 'lucide-react';
 import { MenuItem, Order } from './types';
 import { subscribeToMenuItems, INITIAL_MENU_ITEMS, ONE_POUND_ITEM, seedInitialMenuIfEmpty } from './firebase/menu';
 
@@ -177,6 +178,24 @@ const MainContent: React.FC = () => {
         onClose={() => setConfirmedOrder(null)}
         onViewDashboard={handleTrackOrderFromConfirmation}
       />
+
+      {/* Floating Admin Panel Quick Shortcut */}
+      <button
+        onClick={() => {
+          setActiveView(activeView === 'admin' ? 'home' : 'admin');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        className="fixed bottom-6 left-6 z-40 bg-stone-900/90 hover:bg-stone-900 text-stone-200 hover:text-amber-400 backdrop-blur-md border border-stone-700/80 shadow-2xl px-4 py-2.5 rounded-full text-xs font-bold flex items-center gap-2.5 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+        title="Admin Panel Shortcut"
+      >
+        <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-stone-950 transition">
+          <ShieldCheck className="w-3.5 h-3.5" />
+        </div>
+        <span>{activeView === 'admin' ? 'Exit Admin View' : 'Admin Panel Shortcut'}</span>
+        {isAdmin && (
+          <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/40 animate-pulse" title="Admin Logged In" />
+        )}
+      </button>
 
       <Toast />
     </div>

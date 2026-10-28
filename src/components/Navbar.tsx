@@ -131,20 +131,22 @@ export const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView }) => 
               Hours & Contact
             </button>
 
-            {/* Admin Quick Link if admin */}
-            {isAdmin && (
-              <button
-                onClick={() => handleNavClick('admin')}
-                className={`ml-2 px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition ${
-                  activeView === 'admin'
-                    ? 'bg-amber-600 text-white shadow-sm'
-                    : 'bg-amber-100/80 text-amber-900 hover:bg-amber-200/80'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4 text-amber-700" />
-                <span>Admin Panel</span>
-              </button>
-            )}
+            {/* Admin Quick Shortcut */}
+            <button
+              onClick={() => handleNavClick('admin')}
+              className={`ml-2 px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                activeView === 'admin'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'bg-stone-100 text-stone-700 hover:bg-amber-100/90 hover:text-amber-900'
+              }`}
+              title="Restaurant Operations & Admin Console"
+            >
+              <ShieldCheck className={`w-4 h-4 ${activeView === 'admin' ? 'text-white' : 'text-amber-600'}`} />
+              <span>Admin Panel</span>
+              {isAdmin && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-0.5" title="Logged in as Admin" />
+              )}
+            </button>
           </nav>
 
           {/* Action buttons (Cart + Auth) */}
@@ -351,17 +353,20 @@ export const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView }) => 
             </button>
           )}
 
-          {isAdmin && (
-            <button
-              onClick={() => handleNavClick('admin')}
-              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between ${
-                activeView === 'admin' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-900'
-              }`}
-            >
-              <span>Admin Management Dashboard</span>
-              <ShieldCheck className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            onClick={() => handleNavClick('admin')}
+            className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between ${
+              activeView === 'admin' ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-800'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-amber-600" />
+              <span>Admin Management Panel</span>
+            </span>
+            {isAdmin && (
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">Admin Active</span>
+            )}
+          </button>
 
           {!user && (
             <button
