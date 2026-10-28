@@ -83,8 +83,15 @@ const MainContent: React.FC = () => {
     const orderSuccess = params.get('order_success');
 
     if (sessionId && orderSuccess) {
-      fetch(`/api/verify-checkout-session?sessionId=${sessionId}`)
-        .then((res) => res.json())
+      fetch(`/api/verify-checkout-session?sessionId=${sessionId}`, {
+        credentials: 'include',
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+          const ct = res.headers.get('content-type') || '';
+          if (!ct.includes('application/json')) throw new Error('Non-JSON response');
+          return res.json();
+        })
         .then(async (data) => {
           if (data.paid && data.metadata) {
             try {
