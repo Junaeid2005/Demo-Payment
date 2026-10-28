@@ -1,10 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { X, ShieldCheck, MapPin, Phone, User as UserIcon, MessageSquare, AlertCircle, Loader2, CheckCircle2, Lock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  X,
+  ShieldCheck,
+  MapPin,
+  Phone,
+  User as UserIcon,
+  MessageSquare,
+  AlertCircle,
+  Loader2,
+  CheckCircle2,
+  Lock,
+  CreditCard,
+  Banknote,
+  KeyRound,
+  ExternalLink
+} from 'lucide-react';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { createOrder } from '../firebase/orders';
 import { updateUserProfile } from '../firebase/auth';
 import { Order, OrderItem } from '../types';
+import { StripePaymentForm } from './StripePaymentForm';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -24,6 +42,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
   const [saveInfoForFuture, setSaveInfoForFuture] = useState(true);
   const [fulfillmentType, setFulfillmentType] = useState<'delivery' | 'pickup'>('delivery');
 
+  // Payment method selection
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'cash'>('stripe');
+
+  // Stripe integration states
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [stripeConfigured, setStripeConfigured] = useState<boolean>(false);
+  const [loadingPaymentIntent, setLoadingPaymentIntent] = useState<boolean>(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -37,89 +64,226 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     }
   }, [user, profile, isOpen]);
 
-  if (!isOpen) return null;
+  // Compute final charges
+  const finalDeliveryFee = fulfillmentType === 'pickup' ? 0 : deliveryFee;
+  const finalTotal = subtotal + finalDeliveryFee + tax;
 
-  const handleSubmitOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Initialize Stripe and check backend configuration
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+
+    async function initStripe() {
+      try {
+        const res = await fetch('/api/payment-config');
+        if (!res.ok) throw new Error('Could not fetch payment config');
+        const data = await res.json();
+
+        if (isMounted) {
+          const pubKey = data.publishableKey || (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY;
+          if (pubKey && pubKey.startsWith('pk_')) {
+            setStripePromise(loadStripe(pubKey));
+            setStripeConfigured(true);
+          } else {
+            setStripeConfigured(false);
+          }
+        }
+      } catch (e) {
+        console.warn('Payment configuration check:', e);
+        if (isMounted) setStripeConfigured(false);
+      }
+    }
+
+    initStripe();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
+
+  // Create payment intent whenever user selects Stripe and has items
+  useEffect(() => {
+    if (!isOpen || paymentMethod !== 'stripe' || finalTotal <= 0) return;
+
+    let isMounted = true;
+    setLoadingPaymentIntent(true);
     setErrorMessage(null);
 
+    async function createIntent() {
+      try {
+        const res = await fetch('/api/create-payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: finalTotal,
+            currency: 'gbp',
+            customerEmail: user?.email || customerEmail,
+            customerName: customerName || 'Valued Guest',
+            metadata: {
+              userId: user?.uid || 'guest',
+              itemCount: cart.length,
+            },
+          }),
+        });
+
+        const data = await res.json();
+        if (isMounted) {
+          if (res.ok && data.clientSecret) {
+            setClientSecret(data.clientSecret);
+          } else {
+            setClientSecret(null);
+            if (data.configured === false) {
+              setStripeConfigured(false);
+            } else if (data.error) {
+              setErrorMessage(data.error);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('Error creating payment intent:', err);
+        if (isMounted) {
+          setClientSecret(null);
+        }
+      } finally {
+        if (isMounted) setLoadingPaymentIntent(false);
+      }
+    }
+
+    createIntent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, paymentMethod, finalTotal, user?.uid, cart.length]);
+
+  if (!isOpen) return null;
+
+  // Validation function
+  const validateForm = (): boolean => {
     if (!user) {
       setErrorMessage('Please sign in with your Google account to complete your order.');
-      return;
+      return false;
     }
-
     if (!customerName.trim()) {
       setErrorMessage('Please enter your full name.');
-      return;
+      return false;
     }
-
     if (!customerPhone.trim()) {
       setErrorMessage('Please provide a valid contact phone number.');
-      return;
+      return false;
     }
-
     if (fulfillmentType === 'delivery' && !deliveryAddress.trim()) {
       setErrorMessage('Please provide your complete delivery address.');
-      return;
+      return false;
     }
-
     if (cart.length === 0) {
       setErrorMessage('Your cart is empty. Please add items to proceed.');
-      return;
+      return false;
+    }
+    return true;
+  };
+
+  // Helper to commit order to Firestore
+  const saveOrderToFirestore = async (paymentDetails: {
+    method: 'stripe' | 'cash';
+    status: 'paid' | 'pending';
+    intentId?: string;
+  }): Promise<Order> => {
+    const orderItems: OrderItem[] = cart.map((item) => ({
+      menuItemId: item.menuItem.id,
+      name: item.menuItem.name,
+      price: item.menuItem.price,
+      quantity: item.quantity,
+      imageUrl: item.menuItem.imageUrl,
+      notes: item.notes || '',
+    }));
+
+    const finalAddress = fulfillmentType === 'pickup'
+      ? 'In-Restaurant Pickup (Savoria Bistro Front Counter)'
+      : deliveryAddress;
+
+    const placedOrder = await createOrder({
+      userId: user!.uid,
+      customerName,
+      customerEmail: user!.email || customerEmail,
+      customerPhone,
+      deliveryAddress: finalAddress,
+      specialInstructions,
+      items: orderItems,
+      subtotal,
+      deliveryFee: finalDeliveryFee,
+      tax,
+      total: finalTotal,
+      paymentMethod: paymentDetails.method,
+      paymentStatus: paymentDetails.status,
+      paymentIntentId: paymentDetails.intentId,
+    });
+
+    if (saveInfoForFuture && user?.uid) {
+      try {
+        await updateUserProfile(user.uid, {
+          phone: customerPhone,
+          address: fulfillmentType === 'delivery' ? deliveryAddress : profile?.address || '',
+        });
+        refreshProfile();
+      } catch (e) {
+        console.warn('Could not save profile details:', e);
+      }
     }
 
+    clearCart();
+    return placedOrder;
+  };
+
+  // Cash / Pay on delivery submit
+  const handleCashOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
+    setErrorMessage(null);
 
     try {
-      const orderItems: OrderItem[] = cart.map((item) => ({
-        menuItemId: item.menuItem.id,
-        name: item.menuItem.name,
-        price: item.menuItem.price,
-        quantity: item.quantity,
-        imageUrl: item.menuItem.imageUrl,
-        notes: item.notes || '',
-      }));
-
-      const finalAddress = fulfillmentType === 'pickup' ? 'In-Restaurant Pickup (Savoria Bistro Front Counter)' : deliveryAddress;
-      const finalDeliveryFee = fulfillmentType === 'pickup' ? 0 : deliveryFee;
-      const finalTotal = subtotal + finalDeliveryFee + tax;
-
-      const placedOrder = await createOrder({
-        userId: user.uid,
-        customerName,
-        customerEmail: user.email || customerEmail,
-        customerPhone,
-        deliveryAddress: finalAddress,
-        specialInstructions,
-        items: orderItems,
-        subtotal,
-        deliveryFee: finalDeliveryFee,
-        tax,
-        total: finalTotal,
+      const placedOrder = await saveOrderToFirestore({
+        method: 'cash',
+        status: 'pending',
       });
 
-      // Optionally update saved phone & address in user profile
-      if (saveInfoForFuture && user.uid) {
-        try {
-          await updateUserProfile(user.uid, {
-            phone: customerPhone,
-            address: fulfillmentType === 'delivery' ? deliveryAddress : profile?.address || '',
-          });
-          refreshProfile();
-        } catch (e) {
-          console.warn('Could not save updated profile address:', e);
-        }
-      }
-
-      clearCart();
       setIsSubmitting(false);
       onClose();
       onOrderSuccess(placedOrder);
     } catch (error: any) {
-      console.error('Failed to submit order:', error);
+      console.error('Failed to submit cash order:', error);
       setIsSubmitting(false);
       setErrorMessage(
-        error?.message ? `Failed to place order: ${error.message}` : 'An unexpected error occurred while placing your order. Please try again.'
+        error?.message ? `Failed to place order: ${error.message}` : 'An unexpected error occurred. Please try again.'
+      );
+    }
+  };
+
+  // Stripe payment success callback
+  const handleStripeSuccess = async (paymentIntentId: string) => {
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const placedOrder = await saveOrderToFirestore({
+        method: 'stripe',
+        status: 'paid',
+        intentId: paymentIntentId,
+      });
+
+      setIsSubmitting(false);
+      onClose();
+      onOrderSuccess(placedOrder);
+    } catch (error: any) {
+      console.error('Error recording paid order:', error);
+      setIsSubmitting(false);
+      setErrorMessage(
+        'Payment was approved by Stripe, but saving the order record encountered an issue. Please contact the restaurant immediately.'
       );
     }
   };
@@ -137,7 +301,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               Complete Your Order
             </h2>
             <p className="text-xs text-stone-500 mt-0.5">
-              Secure checkout powered by Firebase Cloud Firestore
+              Instant live payment via Stripe UK & Firebase Cloud
             </p>
           </div>
           <button
@@ -150,8 +314,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         </div>
 
         {/* Content Body */}
-        <div className="p-6 sm:p-8">
-          {/* Auth requirement reminder if not logged in */}
+        <div className="p-6 sm:p-8 max-h-[85vh] overflow-y-auto">
+          {/* Auth check */}
           {!user ? (
             <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-600 text-white flex items-center justify-center mx-auto shadow-md">
@@ -169,29 +333,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                 onClick={login}
                 className="px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2.5 mx-auto shadow-md transition cursor-pointer"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
                 <span>Continue with Google</span>
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmitOrder} className="space-y-6">
+            <div className="space-y-6">
               {errorMessage && (
                 <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -236,7 +382,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                 </div>
               </div>
 
-              {/* Customer Info Form */}
+              {/* Customer Contact Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-stone-700 block mb-1">
@@ -266,14 +412,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                       required
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="e.g. (555) 382-9912"
+                      placeholder="e.g. +44 7911 123456"
                       className="w-full pl-10 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/30"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Address (If Delivery) */}
+              {/* Delivery Address */}
               {fulfillmentType === 'delivery' && (
                 <div>
                   <label className="text-xs font-bold text-stone-700 block mb-1">
@@ -286,14 +432,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                       rows={2}
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
-                      placeholder="Street address, apt/suite, city, zip code..."
+                      placeholder="Street address, flat/apt number, postal code..."
                       className="w-full pl-10 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 resize-none"
                     />
                   </div>
                 </div>
               )}
 
-              {/* Special Instructions (Optional) */}
+              {/* Special Instructions */}
               <div>
                 <label className="text-xs font-bold text-stone-700 block mb-1">
                   Special Delivery or Kitchen Notes (Optional)
@@ -304,7 +450,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     rows={2}
                     value={specialInstructions}
                     onChange={(e) => setSpecialInstructions(e.target.value)}
-                    placeholder="e.g. Ring doorbell, leave at door, no plastic cutlery please..."
+                    placeholder="e.g. Ring doorbell, no extra spicy, leave at door..."
                     className="w-full pl-10 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 resize-none"
                   />
                 </div>
@@ -320,6 +466,57 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                 />
                 <span>Save phone and address to my profile for faster future orders</span>
               </label>
+
+              {/* Payment Method Selector */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-500 block mb-2">
+                  Select Payment Method
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('stripe')}
+                    className={`p-3.5 rounded-2xl border text-left transition flex items-start gap-3 cursor-pointer ${
+                      paymentMethod === 'stripe'
+                        ? 'border-amber-600 bg-amber-50/60 ring-2 ring-amber-500/20'
+                        : 'border-stone-200 hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-bold text-sm text-stone-900">Card & Digital Pay</p>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-md">Live</span>
+                      </div>
+                      <p className="text-[11px] text-stone-500 mt-0.5">
+                        Stripe UK (Visa, Mastercard, Apple Pay, Google Pay)
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`p-3.5 rounded-2xl border text-left transition flex items-start gap-3 cursor-pointer ${
+                      paymentMethod === 'cash'
+                        ? 'border-amber-600 bg-amber-50/60 ring-2 ring-amber-500/20'
+                        : 'border-stone-200 hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-stone-800 text-white flex items-center justify-center shrink-0 mt-0.5">
+                      <Banknote className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-stone-900">Pay on Delivery / Counter</p>
+                      <p className="text-[11px] text-stone-500 mt-0.5">
+                        Pay in cash or card machine upon receipt
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              </div>
 
               {/* Order Summary Snapshot */}
               <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-2 text-xs">
@@ -344,34 +541,99 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   <span className="font-semibold text-stone-900">£{tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-stone-900 pt-2 border-t border-stone-200">
-                  <span>Total Amount</span>
+                  <span>Total Due</span>
                   <span className="text-amber-700 font-display text-base">
-                    £{(subtotal + (fulfillmentType === 'pickup' ? 0 : deliveryFee) + tax).toFixed(2)}
+                    £{finalTotal.toFixed(2)}
                   </span>
                 </div>
               </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-4 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm shadow-xl shadow-amber-600/30 flex items-center justify-center gap-2 transition active:scale-98 disabled:opacity-50 cursor-pointer"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Transmitting Order to Kitchen...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>
-                      Place Order • £{(subtotal + (fulfillmentType === 'pickup' ? 0 : deliveryFee) + tax).toFixed(2)}
-                    </span>
-                  </>
-                )}
-              </button>
-            </form>
+              {/* Payment Section based on selected method */}
+              {paymentMethod === 'stripe' ? (
+                <div>
+                  {!stripeConfigured ? (
+                    <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-300/80 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <KeyRound className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-bold text-stone-900 text-sm">
+                            Stripe Keys Awaiting Configuration
+                          </h4>
+                          <p className="text-xs text-stone-600 mt-1 leading-relaxed">
+                            Your Stripe backend is ready! To accept live UK payments, add your Stripe credentials into your project's <code className="bg-amber-100 text-amber-900 px-1 py-0.5 rounded font-mono font-bold text-[11px]">.env</code> file:
+                          </p>
+                          <div className="bg-stone-900 text-amber-300 font-mono text-[11px] p-3 rounded-xl mt-2.5 space-y-1 select-all">
+                            <p>VITE_STRIPE_PUBLISHABLE_KEY=pk_live_... (or pk_test_...)</p>
+                            <p>STRIPE_SECRET_KEY=sk_live_... (or sk_test_...)</p>
+                          </div>
+                          <p className="text-[11px] text-stone-500 mt-2">
+                            Tip: You can still place test orders right now by selecting <strong>"Pay on Delivery / Counter"</strong> above.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : loadingPaymentIntent ? (
+                    <div className="p-8 rounded-2xl bg-stone-50 border border-stone-200 flex flex-col items-center justify-center gap-2 text-stone-600">
+                      <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
+                      <span className="text-xs font-medium">Opening secure Stripe payment session...</span>
+                    </div>
+                  ) : stripePromise && clientSecret ? (
+                    <Elements
+                      stripe={stripePromise}
+                      options={{
+                        clientSecret,
+                        appearance: {
+                          theme: 'stripe',
+                          variables: {
+                            colorPrimary: '#d97706',
+                            colorBackground: '#ffffff',
+                            colorText: '#1c1917',
+                            colorDanger: '#e11d48',
+                            fontFamily: 'Plus Jakarta Sans, sans-serif',
+                            borderRadius: '12px',
+                          },
+                        },
+                      }}
+                    >
+                      <StripePaymentForm
+                        amount={finalTotal}
+                        currencySymbol="£"
+                        isProcessing={isSubmitting}
+                        onPaymentSuccess={handleStripeSuccess}
+                        onError={(err) => setErrorMessage(err)}
+                        disabled={!customerName.trim() || !customerPhone.trim() || (fulfillmentType === 'delivery' && !deliveryAddress.trim())}
+                      />
+                    </Elements>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                      Could not establish secure connection to Stripe. Please verify your Stripe API keys or choose Pay on Delivery.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={handleCashOrderSubmit}>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-4 rounded-2xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-sm shadow-xl flex items-center justify-center gap-2 transition active:scale-98 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Sending Order to Kitchen...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span>
+                          Confirm Order (Pay on Receipt) • £{finalTotal.toFixed(2)}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -32,6 +32,9 @@ export interface CreateOrderParams {
   deliveryFee: number;
   tax: number;
   total: number;
+  paymentMethod?: 'stripe' | 'cash';
+  paymentStatus?: 'paid' | 'pending';
+  paymentIntentId?: string;
 }
 
 export async function createOrder(params: CreateOrderParams): Promise<Order> {
@@ -52,6 +55,9 @@ export async function createOrder(params: CreateOrderParams): Promise<Order> {
     tax: Number(params.tax.toFixed(2)),
     total: Number(params.total.toFixed(2)),
     status: 'pending',
+    paymentMethod: params.paymentMethod || 'stripe',
+    paymentStatus: params.paymentStatus || 'pending',
+    paymentIntentId: params.paymentIntentId || '',
     createdAt: now,
     updatedAt: now,
   };

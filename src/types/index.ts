@@ -62,6 +62,9 @@ export interface Order {
   tax: number;
   total: number;
   status: OrderStatus;
+  paymentMethod?: 'stripe' | 'cash';
+  paymentStatus?: 'paid' | 'pending';
+  paymentIntentId?: string;
   createdAt: string;
   updatedAt: string;
 }
